@@ -1,76 +1,29 @@
 #!/usr/bin/env bash
-# ============================================================
-#  OrgOps Installer Script
-#  Version: 1.0.0
-#  Author:  OrgOps (www.orgops.org)
-# ============================================================
+set -e
 
-set -euo pipefail
+VERSION="v1.0.0"
+OWNER="OrgOps"
+REPO="core"  # updated from "releases" to "core"
 
-ORGOPS_VERSION="1.0.0"
-BASE_URL="https://www.orgops.org/downloads"
-INSTALL_DIR="/usr/local/bin"
-TMP_DIR="$(mktemp -d)"
-BINARY_PATH="${TMP_DIR}/orgops"
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
 
-# --------------------------
-#  Detect OS & architecture
-# --------------------------
-OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH="$(uname -m)"
-
+# Normalize architecture names
 case "$ARCH" in
-  x86_64|amd64) ARCH="x64" ;;
+  x86_64) ARCH="x86_64" ;;
   arm64|aarch64) ARCH="arm64" ;;
-  *) echo "❌ Unsupported architecture: ${ARCH}"; exit 1 ;;
+  *) echo "❌ Unsupported architecture: $ARCH" && exit 1 ;;
 esac
 
-echo "📦 Installing OrgOps v${ORGOPS_VERSION} for ${OS}-${ARCH}"
-
-# --------------------------
-#  Determine binary URL
-# --------------------------
 BINARY_NAME="orgops-${OS}-${ARCH}"
-BINARY_URL="${BASE_URL}/${BINARY_NAME}"
+DOWNLOAD_URL="https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}/${BINARY_NAME}"
+INSTALL_PATH="/usr/local/bin/orgops"
 
-# Optional: checksum file
-CHECKSUM_URL="${BASE_URL}/checksums.txt"
+echo "📦 Installing OrgOps ${VERSION} for ${OS}-${ARCH}"
+echo "⬇️  Downloading from ${DOWNLOAD_URL}"
 
-# --------------------------
-#  Download binary
-# --------------------------
-echo "⬇️  Downloading ${BINARY_URL}"
-curl -fsSL -o "${BINARY_PATH}" "${BINARY_URL}"
+curl -L --fail "${DOWNLOAD_URL}" -o "${INSTALL_PATH}"
+chmod +x "${INSTALL_PATH}"
 
-# --------------------------
-#  Verify checksum (if file exists)
-# --------------------------
-if curl --output /dev/null --silent --head --fail "${CHECKSUM_URL}"; then
-  echo "🔍 Verifying checksum..."
-  curl -fsSL -o "${TMP_DIR}/checksums.txt" "${CHECKSUM_URL}"
-  grep "${BINARY_NAME}" "${TMP_DIR}/checksums.txt" | shasum -a 256 -c -
-else
-  echo "⚠️  No checksum file found — skipping verification."
-fi
-
-# --------------------------
-#  Install binary
-# --------------------------
-chmod +x "${BINARY_PATH}"
-
-if [ ! -w "${INSTALL_DIR}" ]; then
-  echo "🛠️  Requires sudo to install in ${INSTALL_DIR}"
-  sudo mv "${BINARY_PATH}" "${INSTALL_DIR}/orgops"
-else
-  mv "${BINARY_PATH}" "${INSTALL_DIR}/orgops"
-fi
-
-# --------------------------
-#  Final checks
-# --------------------------
-if command -v orgops >/dev/null 2>&1; then
-  echo "✅ OrgOps v${ORGOPS_VERSION} installed successfully!"
-  echo "➡️  Run: orgops --help"
-else
-  echo "⚠️  Installed binary not found in PATH. Add ${INSTALL_DIR} to your PATH."
-fi
+echo "✅ OrgOps installed successfully!"
+"${INSTALL_PATH}" --version || true
